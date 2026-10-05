@@ -1,0 +1,8 @@
+group: io.kestra.plugin.transform.arrow
+name: "arrow"
+title: "Arrow"
+description: "Query Parquet, Arrow, CSV, NDJSON, and Ion files with jq."
+body: "Provide a Parquet, Arrow IPC, CSV, NDJSON, or Ion file and a jq expression to filter or reshape each row. Aggregates use slurp mode. Output is Ion records or NDJSON."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

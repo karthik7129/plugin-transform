@@ -1,0 +1,51 @@
+id: all_arrow
+namespace: sanitychecks.plugin-transform-arrow
+
+tasks:
+  - id: write_orders
+    type: io.kestra.plugin.core.storage.Write
+    content: |
+      {"order_id":"o1","customer_name":"Ada","total":150}
+      {"order_id":"o2","customer_name":"Grace","total":40}
+    extension: .ndjson
+
+  - id: high_value
+    type: io.kestra.plugin.transform.arrow.Query
+    from: "{{ outputs.write_orders.uri }}"
+    expression: 'select(.total > 100) | {order_id, customer: .customer_name, total}'
+
+  - id: avg_total
+    type: io.kestra.plugin.transform.arrow.Query
+    from: "{{ outputs.write_orders.uri }}"
+    slurp: true
+    expression: '[.[].total] | add / length'
+
+  - id: write_csv
+    type: io.kestra.plugin.core.storage.Write
+    content: |
+      order_id;customer_name;total
+      o1;Ada;150
+      o2;Grace;40
+    extension: .csv
+
+  - id: csv_query
+    type: io.kestra.plugin.transform.arrow.Query
+    from: "{{ outputs.write_csv.uri }}"
+    inputFormat: CSV
+    expression: 'select(.total > 100) | {order_id, total}'
+    csvOptions:
+      delimiter: ";"
+
+  - id: assert
+    type: io.kestra.plugin.core.execution.Assert
+    conditions:
+      - "{{ outputs.high_value.processedItemsTotal == 1 }}"
+      - "{{ fromIon(read(outputs.high_value.uri), allRows=true) | length == 1 }}"
+      - "{{ fromIon(read(outputs.high_value.uri), allRows=true)[0].customer == 'Ada' }}"
+      - "{{ outputs.avg_total.processedItemsTotal == 1 }}"
+      - "{{ outputs.csv_query.processedItemsTotal == 1 }}"
+      - "{{ fromIon(read(outputs.csv_query.uri), allRows=true)[0].order_id == 'o1' }}"
+
+finally:
+  - id: purge
+    type: io.kestra.plugin.core.storage.PurgeCurrentExecutionFiles

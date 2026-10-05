@@ -1,0 +1,70 @@
+project.description = 'Kestra Plugin Transformation for Arrow, Parquet, CSV, and NDJSON.'
+
+// Arrow's off-heap allocator reflects into java.nio. Kestra's runtime already opens this
+// package; the test JVM has to do the same or RootAllocator fails on JDK 21.
+test {
+    jvmArgs '--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED'
+    maxHeapSize = '1g'
+}
+
+jar {
+    manifest {
+        attributes(
+                "X-Kestra-Name": project.name,
+                "X-Kestra-Title": "Arrow",
+                "X-Kestra-Group": project.group + ".transform.arrow",
+                "X-Kestra-Description": project.description,
+                "X-Kestra-Version": project.version
+        )
+    }
+}
+
+configurations.configureEach {
+    exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    exclude group: 'log4j', module: 'log4j'
+    exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
+    exclude group: 'org.apache.hadoop', module: 'hadoop-client'
+}
+
+dependencies {
+    // Jackson 2. jackson-jq 2.x targets Jackson 3, which Kestra does not ship.
+    implementation 'net.thisptr:jackson-jq:1.6.5'
+
+    implementation 'de.siegmar:fastcsv:4.4.0'
+
+    // Pure-Java Arrow IPC. arrow-dataset is JNI and is intentionally not used.
+    implementation 'org.apache.arrow:arrow-vector:18.3.0'
+    implementation 'org.apache.arrow:arrow-memory-unsafe:18.3.0'
+
+    // parquet-avro's reader types mention Hadoop Configuration in public signatures, and
+    // ParquetReadOptions references FileInputFormat, so hadoop-common and
+    // hadoop-mapreduce-client-core have to be on the classpath. Reads themselves use
+    // LocalInputFile and PlainParquetConfiguration and do not open a Hadoop FileSystem.
+    implementation('org.apache.parquet:parquet-avro:1.18.1') {
+        exclude group: 'org.slf4j'
+        exclude group: 'com.fasterxml.jackson.core'
+        exclude group: 'org.apache.hadoop', module: 'hadoop-client'
+    }
+    implementation('org.apache.hadoop:hadoop-common:3.5.0') {
+        exclude group: 'org.slf4j'
+        exclude group: 'com.fasterxml.jackson.core'
+        exclude group: 'log4j'
+        exclude group: 'org.eclipse.jetty'
+        exclude group: 'javax.servlet'
+        exclude group: 'jakarta.servlet'
+        exclude group: 'dnsjava'
+        exclude group: 'org.apache.zookeeper'
+        exclude group: 'org.apache.curator'
+        exclude group: 'com.sun.jersey'
+        exclude group: 'org.apache.kerby'
+    }
+    implementation('org.apache.hadoop:hadoop-auth:3.5.0') {
+        exclude group: 'org.slf4j'
+        exclude group: 'com.fasterxml.jackson.core'
+    }
+    implementation('org.apache.hadoop:hadoop-mapreduce-client-core:3.5.0') {
+        exclude group: 'org.slf4j'
+        exclude group: 'com.fasterxml.jackson.core'
+    }
+}
